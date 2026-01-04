@@ -1,0 +1,48 @@
+* { box-sizing: border-box; }
+body { font-family: Inter, system-ui, Arial, sans-serif; margin: 0; }
+.app-shell { height: 100vh; display: flex; flex-direction: column; }
+.topbar { 
+  height: 44px; 
+  background: #0b5cff; 
+  color: white; 
+  padding: 8px 12px; 
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.controls button {
+  padding: 6px 12px;
+  background: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 12px;
+}
+.controls button:hover:not(:disabled) {
+  background: #f0f0f0;
+}
+.controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.status {
+  font-size: 12px;
+  margin-left: 8px;
+  padding: 4px 8px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 4px;
+}
+.main { flex: 1; display: flex; gap: 12px; padding: 12px; align-items: stretch }
+.left { width: 140px; background: #fff; border: 1px solid #eee; padding: 8px; overflow-y: auto }
+.center-right { flex: 1; display: flex; align-items: stretch; border: 1px solid #eee; background: #fafafa }
+.center { flex: 1; display: flex; align-items: center; justify-content: center; padding: 8px }
+.splitter { width: 8px; cursor: col-resize; background: linear-gradient(90deg, transparent, rgba(0,0,0,0.06), transparent) }
+.right { width: 520px; min-width: 220px; background: #fff; padding: 8px; overflow: auto }
+
