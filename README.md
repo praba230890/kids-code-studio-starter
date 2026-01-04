@@ -22,4 +22,4 @@ Next steps:
 - Implement more blocks and the block compiler to runtime API.
 - Add app screenshot from assets folder
 
-![App Screenshot](./assets/screenshot.png)
+![App Screenshot](./assets/App Screenshot.png)
