@@ -5,6 +5,7 @@
 
 import { SimObject, RuntimeContext, CompiledScript } from '../types/runtime'
 import Sandbox from './sandbox'
+import { getAsset } from './storage'
 
 export class SimulationRuntime {
   private context: RuntimeContext
@@ -13,6 +14,7 @@ export class SimulationRuntime {
   private running: boolean = false
   private lastTime: number = 0
   private animationFrameId: number | null = null
+  private loadedImages: Map<string, HTMLImageElement> = new Map()
 
   constructor() {
     this.context = {
@@ -27,6 +29,8 @@ export class SimulationRuntime {
       log: this.log.bind(this),
       addObject: this.addObject.bind(this),
       removeObject: this.removeObject.bind(this),
+      loadImage: this.loadImage.bind(this),
+      createSprite: this.createSprite.bind(this),
     }
     this.script = {} as CompiledScript
   }
@@ -72,6 +76,14 @@ export class SimulationRuntime {
         }
         if (name === 'log') {
           this.log(args[0])
+          return true
+        }
+        if (name === 'loadImage') {
+          await this.loadImage(args[0])
+          return true
+        }
+        if (name === 'createSprite') {
+          this.createSprite(args[0], args[1], args[2], args[3])
           return true
         }
         return null
@@ -163,7 +175,8 @@ export class SimulationRuntime {
   private updatePhysics(deltaTime: number) {
     const GRAVITY = 9.8
     for (const obj of this.context.objects.values()) {
-      if (obj.gravity !== false && obj.mass !== undefined) {
+      // Apply gravity if object has mass and gravity is not disabled (0 means disabled)
+      if ((obj.gravity === undefined || obj.gravity > 0) && obj.mass !== undefined) {
         obj.vy = (obj.vy || 0) + GRAVITY * deltaTime
         obj.y += obj.vy * deltaTime
       }
@@ -222,6 +235,65 @@ export class SimulationRuntime {
    */
   removeObject(objectId: string) {
     this.context.objects.delete(objectId)
+  }
+
+  /**
+   * Load an image asset
+   */
+  async loadImage(assetId: string) {
+    if (this.loadedImages.has(assetId)) return
+    
+    try {
+      const asset = await getAsset(assetId)
+      if (!asset || asset.type !== 'image') {
+        console.warn(`Asset ${assetId} not found or not an image`)
+        return
+      }
+
+      const img = new Image()
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = reject
+        img.src = asset.data
+      })
+
+      this.loadedImages.set(assetId, img)
+      console.log(`Loaded image asset: ${assetId}`)
+    } catch (err) {
+      console.error(`Failed to load image ${assetId}:`, err)
+    }
+  }
+
+  /**
+   * Create a sprite object from an image asset
+   */
+  createSprite(id: string, x: number, y: number, imageId: string) {
+    const img = this.loadedImages.get(imageId)
+    if (!img) {
+      console.warn(`Image ${imageId} not loaded. Call loadImage first.`)
+      return
+    }
+
+    const sprite: SimObject = {
+      id,
+      type: 'sprite',
+      x,
+      y,
+      width: img.width,
+      height: img.height,
+      imageId,
+      color: '#ffffff',
+    }
+
+    this.addObject(sprite)
+    console.log(`Created sprite ${id} with image ${imageId}`)
+  }
+
+  /**
+   * Get loaded image for rendering
+   */
+  getLoadedImage(imageId: string): HTMLImageElement | undefined {
+    return this.loadedImages.get(imageId)
   }
 
   /**

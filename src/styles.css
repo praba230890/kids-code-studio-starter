@@ -39,10 +39,10 @@ body { font-family: Inter, system-ui, Arial, sans-serif; margin: 0; }
   background: rgba(255,255,255,0.2);
   border-radius: 4px;
 }
-.main { flex: 1; display: flex; gap: 12px; padding: 12px; align-items: stretch }
+.main { flex: 1; display: flex; gap: 12px; padding: 12px; align-items: stretch; min-height: 0 }
 .left { width: 140px; background: #fff; border: 1px solid #eee; padding: 8px; overflow-y: auto }
-.center-right { flex: 1; display: flex; align-items: stretch; border: 1px solid #eee; background: #fafafa }
+.center-right { flex: 1; display: flex; align-items: stretch; border: 1px solid #eee; background: #fafafa; min-height: 0 }
 .center { flex: 1; display: flex; align-items: center; justify-content: center; padding: 8px }
 .splitter { width: 8px; cursor: col-resize; background: linear-gradient(90deg, transparent, rgba(0,0,0,0.06), transparent) }
-.right { width: 520px; min-width: 220px; background: #fff; padding: 8px; overflow: auto }
+.right { width: 520px; min-width: 220px; background: #fff; padding: 0; overflow: hidden; display: flex; flex-direction: column }
 

@@ -1,7 +1,8 @@
 // Simple IndexedDB helper for saving/loading projects + versioning
 const DB_NAME = 'studio_studio_db'
 const STORE_NAME = 'projects'
-const DB_VERSION = 1
+const ASSETS_STORE = 'assets'
+const DB_VERSION = 2
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -10,6 +11,9 @@ function openDB(): Promise<IDBDatabase> {
       const db = req.result
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'name' })
+      }
+      if (!db.objectStoreNames.contains(ASSETS_STORE)) {
+        db.createObjectStore(ASSETS_STORE, { keyPath: 'id' })
       }
     }
     req.onsuccess = () => resolve(req.result)
@@ -128,4 +132,58 @@ export async function deleteProject(name: string) {
   })
 }
 
-export default { saveProject, listProjects, loadProject, deleteProject, listProjectVersions, loadProjectVersion }
+// Asset management
+export interface Asset {
+  id: string
+  name: string
+  type: 'image' | 'sound'
+  data: string // base64 data URL
+  size: number
+  uploadedAt: number
+}
+
+export async function saveAsset(asset: Asset): Promise<void> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ASSETS_STORE, 'readwrite')
+    const store = tx.objectStore(ASSETS_STORE)
+    const req = store.put(asset)
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+  })
+}
+
+export async function listAssets(): Promise<Asset[]> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ASSETS_STORE, 'readonly')
+    const store = tx.objectStore(ASSETS_STORE)
+    const req = store.getAll()
+    req.onsuccess = () => resolve(req.result || [])
+    req.onerror = () => reject(req.error)
+  })
+}
+
+export async function getAsset(id: string): Promise<Asset | null> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ASSETS_STORE, 'readonly')
+    const store = tx.objectStore(ASSETS_STORE)
+    const req = store.get(id)
+    req.onsuccess = () => resolve(req.result || null)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+export async function deleteAsset(id: string): Promise<void> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ASSETS_STORE, 'readwrite')
+    const store = tx.objectStore(ASSETS_STORE)
+    const req = store.delete(id)
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+  })
+}
+
+export default { saveProject, listProjects, loadProject, deleteProject, listProjectVersions, loadProjectVersion, saveAsset, listAssets, getAsset, deleteAsset }

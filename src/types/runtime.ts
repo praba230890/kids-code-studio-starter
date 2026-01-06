@@ -4,7 +4,7 @@
 
 export interface SimObject {
   id: string
-  type: 'circle' | 'rect' | 'image' | 'text'
+  type: 'circle' | 'rect' | 'image' | 'text' | 'sprite'
   x: number
   y: number
   width?: number
@@ -17,6 +17,7 @@ export interface SimObject {
   vy?: number
   gravity?: number
   text?: string
+  imageId?: string
   [key: string]: any
 }
 
@@ -32,6 +33,8 @@ export interface RuntimeContext {
   log: (message: any) => void
   addObject: (obj: SimObject) => void
   removeObject: (objectId: string) => void
+  loadImage?: (assetId: string) => Promise<void>
+  createSprite?: (id: string, x: number, y: number, imageId: string) => void
 }
 
 export interface CompiledScript {

@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import Canvas from './components/Canvas'
 import BlocklyPanel from './components/BlocklyPanel'
+import AssetManager from './components/AssetManager'
 import { SimulationRuntime } from './lib/simulationRuntime'
 import { SimObject } from './types/runtime'
 
@@ -8,6 +9,7 @@ export default function App() {
   const runtimeRef = useRef<SimulationRuntime | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [rightWidth, setRightWidth] = useState<number>(520)
+  const [activeTab, setActiveTab] = useState<'blocks' | 'assets'>('blocks')
   const draggingRef = useRef<boolean>(false)
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
@@ -47,7 +49,7 @@ export default function App() {
       radius: 24,
       color: '#0077ff',
       mass: 1,
-      gravity: true,
+      gravity: 1,
     }
     
     const rect: SimObject = {
@@ -118,8 +120,47 @@ export default function App() {
             }}
           />
 
-          <aside className="right" style={{ width: rightWidth }}>
-            <BlocklyPanel runtime={runtimeRef.current} />
+          <aside className="right" style={{ width: rightWidth, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid #ddd', background: '#f8f9fa' }}>
+              <button
+                onClick={() => setActiveTab('blocks')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  border: 'none',
+                  background: activeTab === 'blocks' ? '#fff' : 'transparent',
+                  borderBottom: activeTab === 'blocks' ? '2px solid #2b7cff' : '2px solid transparent',
+                  cursor: 'pointer',
+                  fontWeight: activeTab === 'blocks' ? 600 : 400,
+                  fontSize: 12,
+                }}
+              >
+                🧩 Blocks
+              </button>
+              <button
+                onClick={() => setActiveTab('assets')}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  border: 'none',
+                  background: activeTab === 'assets' ? '#fff' : 'transparent',
+                  borderBottom: activeTab === 'assets' ? '2px solid #2b7cff' : '2px solid transparent',
+                  cursor: 'pointer',
+                  fontWeight: activeTab === 'assets' ? 600 : 400,
+                  fontSize: 12,
+                }}
+              >
+                📁 Assets
+              </button>
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+              <div style={{ display: activeTab === 'blocks' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                <BlocklyPanel runtime={runtimeRef.current} />
+              </div>
+              <div style={{ display: activeTab === 'assets' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                <AssetManager />
+              </div>
+            </div>
           </aside>
         </div>
       </div>

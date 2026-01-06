@@ -18,8 +18,8 @@ export default function Canvas({ runtime }: CanvasProps) {
 
     const app = new PIXI.Application({
       backgroundColor: 0xf0f0f0,
-      width: 800,
-      height: 600,
+      width: 600,
+      height: 400,
       resolution: window.devicePixelRatio || 1,
     })
 
@@ -36,8 +36,9 @@ export default function Canvas({ runtime }: CanvasProps) {
         let displayObj = displayObjectsRef.current.get(id)
         
         if (!displayObj) {
-          displayObj = createDisplayObject(obj)
-          if (displayObj) {
+          const newObj = createDisplayObject(obj, runtime)
+          if (newObj) {
+            displayObj = newObj
             app.stage.addChild(displayObj)
             displayObjectsRef.current.set(id, displayObj)
           }
@@ -66,14 +67,14 @@ export default function Canvas({ runtime }: CanvasProps) {
   }, [runtime])
 
   return (
-    <div ref={containerRef} style={{ width: 800, height: 600, border: '1px solid #ddd' }} />
+    <div ref={containerRef} style={{ width: 600, height: 400, border: '1px solid #ddd' }} />
   )
 }
 
 /**
  * Create a PIXI display object from a SimObject
  */
-function createDisplayObject(obj: SimObject): PIXI.DisplayObject | null {
+function createDisplayObject(obj: SimObject, runtime: SimulationRuntime): PIXI.DisplayObject | null {
   switch (obj.type) {
     case 'circle': {
       const g = new PIXI.Graphics()
@@ -88,6 +89,17 @@ function createDisplayObject(obj: SimObject): PIXI.DisplayObject | null {
       g.drawRect(0, 0, obj.width || 50, obj.height || 50)
       g.endFill()
       return g
+    }
+    case 'sprite': {
+      if (!obj.imageId) return null
+      const img = runtime.getLoadedImage(obj.imageId)
+      if (!img) return null
+      
+      const texture = PIXI.Texture.from(img)
+      const sprite = new PIXI.Sprite(texture)
+      sprite.width = obj.width || img.width
+      sprite.height = obj.height || img.height
+      return sprite
     }
     case 'text': {
       const text = new PIXI.Text(obj.text || 'Text', { fill: 0x000000 })

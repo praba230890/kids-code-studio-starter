@@ -134,6 +134,55 @@ export function registerSimulationBlocks(Blockly: any) {
   helpUrl: '',
 }
 
+  const loadImageBlock = {
+  type: 'sim_load_image',
+  message0: 'load image %1',
+  args0: [
+    {
+      type: 'field_input',
+      name: 'ASSET_ID',
+      text: 'asset-id',
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 290,
+  tooltip: 'Load an image asset',
+  helpUrl: '',
+}
+
+  const createSpriteBlock = {
+  type: 'sim_create_sprite',
+  message0: 'create sprite %1 at x %2 y %3 with image %4',
+  args0: [
+    {
+      type: 'field_input',
+      name: 'ID',
+      text: 'sprite1',
+    },
+    {
+      type: 'input_value',
+      name: 'X',
+      check: 'Number',
+    },
+    {
+      type: 'input_value',
+      name: 'Y',
+      check: 'Number',
+    },
+    {
+      type: 'field_input',
+      name: 'IMAGE_ID',
+      text: 'asset-id',
+    },
+  ],
+  previousStatement: null,
+  nextStatement: null,
+  colour: 290,
+  tooltip: 'Create a sprite from an image asset',
+  helpUrl: '',
+}
+
 /**
  * Register all custom blocks
  */
@@ -167,6 +216,16 @@ export function registerSimulationBlocks(Blockly: any) {
       this.jsonInit(onUpdateBlock)
     },
   }
+  Blockly.Blocks['sim_load_image'] = {
+    init() {
+      this.jsonInit(loadImageBlock)
+    },
+  }
+  Blockly.Blocks['sim_create_sprite'] = {
+    init() {
+      this.jsonInit(createSpriteBlock)
+    },
+  }
 
   // JavaScript generators for the custom blocks
   const js = (Blockly as any).JavaScript || (window as any).Blockly && (window as any).Blockly.JavaScript
@@ -198,6 +257,19 @@ export function registerSimulationBlocks(Blockly: any) {
         const secs = generator.valueToCode(block, 'SECONDS', generator.ORDER_NONE) || '0'
         return `await new Promise(r => setTimeout(r, ${secs} * 1000));\n`
       }
+
+      forBlock['sim_load_image'] = function (block: any, generator: any) {
+        const assetId = block.getFieldValue('ASSET_ID') || ''
+        return `loadImage("${assetId}");\n`
+      }
+
+      forBlock['sim_create_sprite'] = function (block: any, generator: any) {
+        const id = block.getFieldValue('ID') || 'sprite1'
+        const x = generator.valueToCode(block, 'X', generator.ORDER_NONE) || '0'
+        const y = generator.valueToCode(block, 'Y', generator.ORDER_NONE) || '0'
+        const imageId = block.getFieldValue('IMAGE_ID') || ''
+        return `createSprite("${id}", ${x}, ${y}, "${imageId}");\n`
+      }
     }
 
     // Legacy fallback: assign directly on Blockly.JavaScript if present
@@ -223,6 +295,19 @@ export function registerSimulationBlocks(Blockly: any) {
       js['sim_delay'] = js['sim_delay'] || function (block: any) {
         const secs = (js as any).valueToCode(block, 'SECONDS', (js as any).ORDER_NONE) || '0'
         return `await new Promise(r => setTimeout(r, ${secs} * 1000));\n`
+      }
+
+      js['sim_load_image'] = js['sim_load_image'] || function (block: any) {
+        const assetId = block.getFieldValue('ASSET_ID') || ''
+        return `loadImage("${assetId}");\n`
+      }
+
+      js['sim_create_sprite'] = js['sim_create_sprite'] || function (block: any) {
+        const id = block.getFieldValue('ID') || 'sprite1'
+        const x = (js as any).valueToCode(block, 'X', (js as any).ORDER_NONE) || '0'
+        const y = (js as any).valueToCode(block, 'Y', (js as any).ORDER_NONE) || '0'
+        const imageId = block.getFieldValue('IMAGE_ID') || ''
+        return `createSprite("${id}", ${x}, ${y}, "${imageId}");\n`
       }
     } catch (e) {
       // ignore errors during legacy registration

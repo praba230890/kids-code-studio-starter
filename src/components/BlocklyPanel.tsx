@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { SimulationRuntime } from '../lib/simulationRuntime'
 import { extractEventHandlers, handlersToScript } from '../lib/blocklyCodegen'
 import { saveProject, listProjects, loadProject, deleteProject, listProjectVersions, loadProjectVersion } from '../lib/storage'
+import ComparePanel from './ComparePanel'
 
 interface BlocklyPanelProps {
   runtime: SimulationRuntime | null
@@ -22,6 +23,9 @@ export default function BlocklyPanel({ runtime }: BlocklyPanelProps) {
   const [showDiffPreview, setShowDiffPreview] = useState(false)
   const [versionThumb, setVersionThumb] = useState<string | null>(null)
   const [currentThumb, setCurrentThumb] = useState<string | null>(null)
+  const [compareOpen, setCompareOpen] = useState(false)
+  const [compareLeftXml, setCompareLeftXml] = useState<string>('')
+  const [compareRightXml, setCompareRightXml] = useState<string>('')
   const mouseMoveRef = useRef<(e: MouseEvent) => void>()
   const mouseUpRef = useRef<(e: MouseEvent) => void>()
 
@@ -108,6 +112,8 @@ export default function BlocklyPanel({ runtime }: BlocklyPanelProps) {
             { kind: 'block', type: 'sim_set_property' },
             { kind: 'block', type: 'sim_get_property' },
             { kind: 'block', type: 'sim_log' },
+            { kind: 'block', type: 'sim_load_image' },
+            { kind: 'block', type: 'sim_create_sprite' },
             { kind: 'block', type: 'math_number' },
             { kind: 'block', type: 'math_arithmetic' },
             { kind: 'block', type: 'controls_if' },
@@ -135,6 +141,13 @@ export default function BlocklyPanel({ runtime }: BlocklyPanelProps) {
 
           // attach the Blockly module to the workspace
           ;(workspace as any).__blockly = Blockly
+          
+          // Trigger resize after injection to ensure proper sizing
+          setTimeout(() => {
+            if (workspace && typeof workspace.resize === 'function') {
+              workspace.resize()
+            }
+          }, 100)
 
           // resolve the actual JS generator object. Some builds export a factory function
           // or different shapes; normalize to an object that has `statementToCode`.
@@ -161,6 +174,29 @@ export default function BlocklyPanel({ runtime }: BlocklyPanelProps) {
           })
 
           workspaceRef.current = workspace
+          
+          // Add resize observer to handle dynamic resizing
+          if (divRef.current) {
+            let resizeTimeout: number | null = null
+            const resizeObserver = new ResizeObserver(() => {
+              // Debounce resize calls
+              if (resizeTimeout) window.clearTimeout(resizeTimeout)
+              resizeTimeout = window.setTimeout(() => {
+                const ws = workspaceRef.current
+                if (ws && typeof ws.resize === 'function') {
+                  ws.resize()
+                  const Blockly = (ws as any).__blockly
+                  if (Blockly && Blockly.svgResize) {
+                    Blockly.svgResize(ws)
+                  }
+                }
+              }, 50)
+            })
+            resizeObserver.observe(divRef.current)
+            // Store cleanup function
+            ;(workspace as any).__resizeObserver = resizeObserver
+          }
+          
           // refresh saved projects list once workspace is available
           try {
             const rows = await listProjects()
@@ -178,6 +214,11 @@ export default function BlocklyPanel({ runtime }: BlocklyPanelProps) {
 
     return () => {
       if (workspaceRef.current) {
+        // Cleanup resize observer
+        const resizeObserver = (workspaceRef.current as any).__resizeObserver
+        if (resizeObserver) {
+          resizeObserver.disconnect()
+        }
         workspaceRef.current.dispose()
         workspaceRef.current = null
       }
@@ -194,6 +235,11 @@ export default function BlocklyPanel({ runtime }: BlocklyPanelProps) {
     }
 
     try {
+      // Clear all existing objects before compiling new blocks
+      const context = runtime.getContext()
+      const objectIds = Array.from(context.objects.keys())
+      objectIds.forEach(id => runtime.removeObject(id))
+      
       // Diagnostic: inspect workspace blocks
       const ws = workspaceRef.current
       const allBlocks = ws.getAllBlocks(false) || []
@@ -382,6 +428,41 @@ export default function BlocklyPanel({ runtime }: BlocklyPanelProps) {
     return diffs
   }
 
+  const handleCompareVersion = async () => {
+    if (!workspaceRef.current || !selectedProject || !selectedVersion) {
+      setCompilationStatus('❌ Select project and version')
+      return
+    }
+    const ws = workspaceRef.current
+    const Blockly = (ws as any).__blockly
+    if (!Blockly) {
+      console.error('Blockly not attached to workspace')
+      return
+    }
+    try {
+      const currDom = Blockly.Xml.workspaceToDom(ws)
+      const currXml = Blockly.Xml.domToText(currDom)
+      console.log('Current XML length:', currXml.length)
+      
+      const versionData = await loadProjectVersion(selectedProject, selectedVersion)
+      console.log('Loaded version data:', versionData)
+      
+      if (!versionData || !versionData.xml) {
+        console.error('No version data found')
+        setCompilationStatus('❌ No version data')
+        return
+      }
+      
+      console.log('Version XML length:', versionData.xml.length)
+      setCompareLeftXml(currXml)
+      setCompareRightXml(versionData.xml)
+      setCompareOpen(true)
+    } catch (e) {
+      console.error('Compare failed', e)
+      setCompilationStatus('❌ Compare failed')
+    }
+  }
+
   // autosave effect
   useEffect(() => {
     if (!autosaveEnabled || !selectedProject) return
@@ -408,7 +489,7 @@ export default function BlocklyPanel({ runtime }: BlocklyPanelProps) {
   }, [autosaveEnabled, autosaveInterval, selectedProject])
 
   return (
-    <div style={{ width: '100%', padding: 8, display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ width: '100%', padding: 8, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <div style={{ fontWeight: 600, marginBottom: 8 }}>Blocks</div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
@@ -438,6 +519,7 @@ export default function BlocklyPanel({ runtime }: BlocklyPanelProps) {
           {versions.map(v => (<option key={v.id} value={v.id}>{new Date(v.updatedAt).toLocaleString()}</option>))}
         </select>
         <button onClick={handleRestoreVersion} style={{ padding: '6px 8px', borderRadius: 4 }}>🔁 Restore</button>
+        <button onClick={handleCompareVersion} style={{ padding: '6px 8px', borderRadius: 4 }}>🔍 Compare</button>
       </div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
@@ -490,7 +572,15 @@ export default function BlocklyPanel({ runtime }: BlocklyPanelProps) {
       <p style={{ fontSize: 11, color: '#666', margin: 0, marginBottom: 8 }}>
         Drag <strong>on start</strong> or <strong>on update</strong> blocks to define behavior.
       </p>
-      <div ref={divRef} id="blocklyDiv" style={{ flex: 1, background: '#fff', border: '1px solid #ddd', borderRadius: 4 }} />
+      <div ref={divRef} id="blocklyDiv" style={{ flex: 1, minHeight: 0, width: '100%', background: '#fff', border: '1px solid #ddd', borderRadius: 4, position: 'relative' }} />
+      
+      {compareOpen && (
+        <ComparePanel
+          leftXml={compareLeftXml}
+          rightXml={compareRightXml}
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
     </div>
   )
 }
